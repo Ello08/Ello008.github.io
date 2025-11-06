@@ -670,4 +670,262 @@
             card.innerHTML = `
                 ${item.thumbnail ? `<img src="${item.thumbnail}" class="item-thumbnail" alt="${item.title}">` : ''}
                 <div class="item-title">${escapeHtml(item.title)}</div>
-                <div                    <spa
+                <div                    <span class="item-category">${escapeHtml(item.category)}</span>
+                    <span class="item-status ${statusClass}">${escapeHtml(item.status)}</span>
+                </div>
+                <div class="item-note">${escapeHtml(item.note)}</div>
+                
+                <div class="item-actions">
+                    <button class="btn btn-secondary btn-edit" data-id="${item.id}">
+                        <i class="fas fa-edit"></i> Düzenle
+                    </button>
+                    <button class="btn-delete" data-id="${item.id}">
+                        <i class="fas fa-trash-alt"></i> Sil
+                    </button>
+                </div>
+            `;
+            
+            // Kartı düzenleme ve silme fonksiyonlarına bağla
+            card.querySelector('.btn-edit').addEventListener('click', (e) => {
+                e.stopPropagation(); // Kartın tıklama olayını engelle
+                openModalForEdit(item.id);
+            });
+
+            card.querySelector('.btn-delete').addEventListener('click', (e) => {
+                e.stopPropagation(); // Kartın tıklama olayını engelle
+                deleteItem(item.id);
+            });
+
+            // Kartın kendisine tıklama olayı (isteğe bağlı, detay modalı için)
+            card.addEventListener('click', () => openModalForEdit(item.id));
+
+            return card;
+        }
+
+        // HTML özel karakterlerini temizle (Güvenlik için)
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+        
+        // Modal aç/kapa
+        function openModal() {
+            itemModal.classList.add('active');
+        }
+
+        function closeModal() {
+            itemModal.classList.remove('active');
+            itemForm.reset(); // Formu temizle
+            editingItemId = null;
+            modalTitle.textContent = 'Yeni Öğe Ekle';
+            thumbnailPreview.classList.remove('active');
+            thumbnailPreview.src = '';
+        }
+        
+        // Düzenleme için modalı aç
+        function openModalForEdit(id) {
+            const items = loadItems();
+            const item = items.find(i => i.id === id);
+            
+            if (!item) return;
+
+            editingItemId = id;
+            modalTitle.textContent = 'Öğe Düzenle';
+            
+            // Form alanlarını doldur
+            document.getElementById('itemTitle').value = item.title;
+            document.getElementById('itemCategory').value = item.category;
+            document.getElementById('itemStatus').value = item.status;
+            document.getElementById('itemNote').value = item.note;
+
+            if (item.thumbnail) {
+                thumbnailPreview.src = item.thumbnail;
+                thumbnailPreview.classList.add('active');
+            } else {
+                thumbnailPreview.classList.remove('active');
+                thumbnailPreview.src = '';
+            }
+            
+            openModal();
+        }
+
+        // Öğe silme
+        function deleteItem(id) {
+            if (confirm('Bu öğeyi silmek istediğinizden emin misiniz?')) {
+                let items = loadItems();
+                items = items.filter(item => item.id !== id);
+                saveItems(items);
+                renderItems();
+            }
+        }
+
+        // Resim Base64'e dönüştürme
+        function getThumbnailBase64(file) {
+            return new Promise((resolve, reject) => {
+                if (!file) {
+                    resolve('');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        // Form Gönderme Olayı (Ekle/Kaydet)
+        itemForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const title = document.getElementById('itemTitle').value.trim();
+            const category = document.getElementById('itemCategory').value;
+            const status = document.getElementById('itemStatus').value;
+            const note = document.getElementById('itemNote').value.trim();
+            const thumbnailFile = document.getElementById('itemThumbnail').files[0];
+
+            let items = loadItems();
+            let thumbnailBase64 = thumbnailPreview.src && thumbnailPreview.classList.contains('active') ? thumbnailPreview.src : '';
+
+            // Yeni resim yüklendi mi kontrol et
+            if (thumbnailFile) {
+                thumbnailBase64 = await getThumbnailBase64(thumbnailFile);
+            }
+
+            if (editingItemId) {
+                // Düzenleme
+                const itemIndex = items.findIndex(item => item.id === editingItemId);
+                if (itemIndex > -1) {
+                    items[itemIndex] = {
+                        ...items[itemIndex],
+                        title,
+                        category,
+                        status,
+                        note,
+                        thumbnail: thumbnailBase64
+                    };
+                }
+            } else {
+                // Yeni Öğe Ekleme
+                const newItem = {
+                    id: Date.now(), // Basit bir benzersiz ID
+                    title,
+                    category,
+                    status,
+                    note,
+                    thumbnail: thumbnailBase64
+                };
+                items.push(newItem);
+            }
+            
+            saveItems(items);
+            renderItems();
+            closeModal();
+        });
+
+        // --- EVENT LISTENERS (Butonları Çalıştıran Kısım) ---
+
+        // 1. Yeni Öğe Ekle Butonu
+        btnAdd.addEventListener('click', () => {
+            editingItemId = null;
+            modalTitle.textContent = 'Yeni Öğe Ekle';
+            itemForm.reset();
+            thumbnailPreview.classList.remove('active');
+            openModal();
+        });
+
+        // 2. Modal Kapatma Butonları
+        btnCloseModal.addEventListener('click', closeModal);
+        btnCancel.addEventListener('click', closeModal);
+        itemModal.addEventListener('click', (e) => {
+            if (e.target === itemModal) {
+                closeModal(); // Modal dışına tıklanırsa kapat
+            }
+        });
+
+        // 3. Arama Kutusu
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value.trim();
+            renderItems();
+        });
+
+        // 4. Kategori Filtreleri
+        categoryFilter.addEventListener('click', (e) => {
+            if (e.target.classList.contains('filter-btn')) {
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                activeCategory = e.target.dataset.category;
+                renderItems();
+            }
+        });
+
+        // 5. Resim Önizlemesi
+        thumbnailInput.addEventListener('change', () => {
+            const file = thumbnailInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    thumbnailPreview.src = e.target.result;
+                    thumbnailPreview.classList.add('active');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                thumbnailPreview.classList.remove('active');
+                thumbnailPreview.src = '';
+            }
+        });
+
+        // 6. Dışa Aktar Butonu
+        btnExport.addEventListener('click', () => {
+            const items = loadItems();
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(items, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "ellolist_yedek_" + Date.now() + ".json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        });
+
+        // 7. İçe Aktar Butonu
+        btnImport.addEventListener('click', () => {
+            importFile.click(); // Gizli dosya girişini tetikle
+        });
+
+        // 8. İçe Aktar Dosya Seçimi
+        importFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (confirm('Mevcut listenin üzerine yazılacaktır. Devam etmek istiyor musunuz?')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const importedItems = JSON.parse(event.target.result);
+                        if (Array.isArray(importedItems)) {
+                            // Basit ID kontrolü yapıp varsa üzerine yazar veya ekler
+                            saveItems(importedItems);
+                            renderItems();
+                            alert('Veriler başarıyla içe aktarıldı!');
+                        } else {
+                            alert('Hata: İçe aktarılan dosya geçerli bir liste formatında değil.');
+                        }
+                    } catch (error) {
+                        alert('Hata: Dosya okunurken bir sorun oluştu. Geçerli bir JSON dosyası olduğundan emin olun.');
+                        console.error('İçe aktarma hatası:', error);
+                    }
+                    importFile.value = ''; // Aynı dosyanın tekrar seçilebilmesi için
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Uygulama yüklendiğinde verileri çiz
+        document.addEventListener('DOMContentLoaded', renderItems);
+        
+    </script>
+</body>
+</html>
