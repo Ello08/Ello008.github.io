@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ElloList 🖤</title>
+<style>
+  :root{
+    --bg:#0b0b0b; --panel:#121212; --muted:#9aa0a6; --accent:#7c4dff; --card:#151515;
+    --danger:#ff5252;
+  }
+  html,body{height:100%; margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; background:var(--bg); color:#eee;}
+  header{padding:16px; text-align:center; background:linear-gradient(180deg,#0f0f0f,#121212); border-bottom:1px solid #191919;}
+  header h1{margin:0;font-size:20px}
+  .wrap{padding:12px; max-width:900px; margin:0 auto;}
+  .row{display:flex; gap:8px; align-items:center}
+  input,select,textarea,button{background:var(--panel); border:1px solid #222; color:#eee; padding:10px; border-radius:10px; font-size:14px;}
+  textarea{min-height:64px; resize:vertical;}
+  select{min-width:140px;}
+  .controls{display:grid; grid-template-columns: 1fr auto; gap:8px; margin-bottom:12px;}
+  .addBtn{background:var(--accent); border:none; color:white; font-weight:600; padding:10px 14px; border-radius:10px;}
+  .grid{display:grid; grid-template-columns:1fr; gap:10px;}
+  @media(min-width:720px){ .controls{grid-template-columns: 2fr 1fr;} .grid{grid-template-columns:1fr 360px;} }
+  .panel{background:var(--card); border:1px solid #171717; border-radius:12px; padding:12px;}
+  .item{border:1px solid #1f1f1f; background:#0e0e0e; padding:10px; border-radius:10px; margin-bottom:10px; display:flex; gap:10px; align-items:flex-start;}
+  .thumb{width:84px;height:84px;background:#111;border-radius:8px;object-fit:cover;}
+  .meta{flex:1}
+  .meta h3{margin:0;font-size:16px}
+  .muted{color:var(--muted); font-size:13px}
+  .small{font-size:13px}
+  .btn{background:transparent;border:1px solid #222;padding:6px 8px;border-radius:8px;color:#ddd}
+  .btn.danger{border-color:var(--danger);color:var(--danger)}
+  .status{padding:6px 8px;border-radius:8px;font-weight:600;font-size:12px}
+  .status.ok{background:#063; color:#dfffe5;}
+  .status.read{background:#114; color:#dfffe5;}
+  .status.wait{background:#442; color:#fff3d6;}
+  .topbar{display:flex; gap:8px; align-items:center; margin-bottom:12px; justify-content:space-between}
+  .search{flex:1; margin-right:8px}
+  .controls small{color:var(--muted)}
+  .foot{font-size:12px;color:var(--muted); text-align:center; margin-top:14px}
+  .flex{display:flex; gap:8px; align-items:center;}
+  .exportBtn{background:#222;border:1px solid #2a2a2a;padding:8px 10px;border-radius:8px;color:#ddd}
+  .fileInput{display:none;}
+  .empty{color:var(--muted); text-align:center; padding:20px}
+</style>
+</head>
+<body>
+  <header><h1>ElloList 🖤</h1></header>
+  <div class="wrap">
+    <div class="panel topbar">
+      <div style="display:flex;gap:8px;align-items:center;flex:1">
+        <select id="categorySelect" title="Kategori">
+          <option value="Film/Dizi">Film / Dizi</option>
+          <option value="Müzik">Müzik</option>
+          <option value="Kitap">Kitap</option>
+          <option value="Novel">Novel</option>
+          <option value="Webtoon">Webtoon</option>
+          <option value="Manga">Manga</option>
+        </select>
+        <input id="titleInput" placeholder="Başlık (ör. Solo Leveling)" />
+        <input id="progressInput" placeholder="Kaçıncı bölüm/sayfada kaldın?" style="width:150px" />
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <select id="statusSelect">
+          <option value="Okuyorum/İzliyorum">Okuyorum/İzliyorum</option>
+          <option value="Bitirdim">Bitirdim</option>
+          <option value="Beklemede">Beklemede</option>
+        </select>
+        <button class="addBtn" id="addBtn">Listeye Ekle</button>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:10px;">
+      <div class="controls">
+        <input id="searchInput" class="search" placeholder="Ara başlık veya notlarda..." />
+        <div style="display:flex; gap:8px; align-items:center;">
+          <select id="filterCat">
+            <option value="all">Tümü</option>
+            <option value="Film/Dizi">Film/Dizi</option>
+            <option value="Müzik">Müzik</option>
+            <option value="Kitap">Kitap</option>
+            <option value="Novel">Novel</option>
+            <option value="Webtoon">Webtoon</option>
+            <option value="Manga">Manga</option>
+          </select>
+          <button class="exportBtn" id="exportBtn">Dışa Aktar</button>
+          <label class="exportBtn" style="cursor:pointer"><input type="file" id="importFile" class="fileInput" />İçe Aktar</label>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:10px;">
+        <div>
+          <div id="listArea"></div>
+          <div id="empty" class="empty" style="display:none">Henüz bir öğe yok. Üstten ekle :)</div>
+        </div>
+
+        <div class="panel" style="height:fit-content;">
+          <h3 style="margin-top:0">Detay / Not & Fotoğraf</h3>
+          <textarea id="noteInput" placeholder="Notlarını yaz..."></textarea>
+          <input type="file" id="photoInput" accept="image/*" />
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button class="btn" id="saveNoteBtn">Notu Kaydet</button>
+            <button class="btn" id="clearAllBtn">Tümünü Sil</button>
+          </div>
+          <p class="muted" style="margin-top:8px">Fotoğraf küçük boyuta sıkıştırılır ve cihazında saklanır.</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="foot">ElloList — Veriler sadece senin cihazında saklanır (localStorage). Ana ekrana ekle ile uygulama gibi kullan.</p>
+  </div>
+
+<script>
+/* ElloList v1 - LocalStorage based app */
+const STORAGE_KEY = 'ellolist_v1';
+let items = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const el = {
+  listArea: document.getElementById('listArea'),
+  empty: document.getElementById('empty'),
+  addBtn: document.getElementById('addBtn'),
+  titleInput: document.getElementById('titleInput'),
+  progressInput: document.getElementById('progressInput'),
+  statusSelect: document.getElementById('statusSelect'),
+  categorySelect: document.getElementById('categorySelect'),
+  searchInput: document.getElementById('searchInput'),
+  filterCat: document.getElementById('filterCat'),
+  noteInput: document.getElementById('noteInput'),
+  photoInput: document.getElementById('photoInput'),
+  saveNoteBtn: document.getElementById('saveNoteBtn'),
+  clearAllBtn: document.getElementById('clearAllBtn'),
+  exportBtn: document.getElementById('exportBtn'),
+  importFile: document.getElementById('importFile')
+};
+
+let selectedIndex = null;
+
+/* helpers */
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function render() {
+  el.listArea.innerHTML = '';
+  const q = el.searchInput.value.trim().toLowerCase();
+  const catFilter = el.filterCat.value;
+  const filtered = items.filter((it)=> {
+    if(catFilter!=='all' && it.category !== catFilter) return false;
+    if(!q) return true;
+    return (it.title||'').toLowerCase().includes(q) || (it.note||'').toLowerCase().includes(q);
+  });
+  if(filtered.length===0) el.empty.style.display='block'; else el.empty.style.display='none';
+  filtered.forEach((it, idx)=>{
+    const div = document.createElement('div'); div.className='item';
+    const left = document.createElement('div');
+    if(it.photo){
+      const img = document.createElement('img'); img.src = it.photo; img.className='thumb'; left.appendChild(img);
+    } else {
+      const placeholder = document.createElement('div'); placeholder.className='thumb'; left.appendChild(placeholder);
+    }
+    div.appendChild(left);
+
+    const md = document.createElement('div'); md.className='meta';
+    const h = document.createElement('h3'); h.innerHTML = it.title + ' <small class="muted">('+it.category+')</small>';
+    md.appendChild(h);
+    const s = document.createElement('div'); s.className='small muted'; s.innerText = 'Bölüm: ' + (it.progress || '-');
+    md.appendChild(s);
+    const note = document.createElement('div'); note.className='muted'; note.style.marginTop='6px'; note.innerText = it.note || '';
+    md.appendChild(note);
+
+    const right = document.createElement('div'); right.style.display='flex'; right.style.flexDirection='column'; right.style.gap='8px';
+    const st = document.createElement('div'); st.className='status ' + (it.status==='Bitirdim'?'read':(it.status==='Beklemede'?'wait':'ok')); st.innerText = it.status;
+    right.appendChild(st);
+
+    const btnRow = document.createElement('div'); btnRow.style.display='flex'; btnRow.style.flexDirection='row'; btnRow.style.gap='6px';
+    const openBtn = document.createElement('button'); openBtn.className='btn'; openBtn.innerText='Düzenle';
+    openBtn.onclick = ()=>{ openItem(it.id); };
+    const delBtn = document.createElement('button'); delBtn.className='btn danger'; delBtn.innerText='Sil';
+    delBtn.onclick = ()=>{ if(confirm('Silinsin mi?')){ removeItem(it.id);} };
+    const cycleBtn = document.createElement('button'); cycleBtn.className='btn'; cycleBtn.innerText='Durum↻';
+    cycleBtn.onclick = ()=>{ cycleStatus(it.id); };
+
+    btnRow.appendChild(openBtn); btnRow.appendChild(cycleBtn); btnRow.appendChild(delBtn);
+    right.appendChild(btnRow);
+
+    div.appendChild(md);
+    div.appendChild(right);
+
+    el.listArea.appendChild(div);
+  });
+}
+
+/* actions */
+function addItem(){
+  const title = el.titleInput.value.trim();
+  if(!title){ alert('Başlık gir'); return; }
+  const it = {
+    id: uid(),
+    title,
+    category: el.categorySelect.value,
+    progress: el.progressInput.value.trim(),
+    note: el.noteInput.value.trim() || '',
+    status: el.statusSelect.value,
+    photo: null,
+    created: Date.now()
+  };
+  items.unshift(it);
+  save();
+  clearInputs();
+  render();
+  openItem(it.id);
+}
+function clearInputs(){
+  el.titleInput.value=''; el.progressInput.value=''; el.noteInput.value=''; el.photoInput.value='';
+}
+function removeItem(id){
+  items = items.filter(i=>i.id!==id);
+  save(); render();
+  if(selectedIndex && items[selectedIndex]) selectedIndex = null;
+}
+function openItem(id){
+  const it = items.find(i=>i.id===id);
+  if(!it) return;
+  selectedIndex = items.indexOf(it);
+  // populate controls
+  el.titleInput.value = it.title;
+  el.progressInput.value = it.progress || '';
+  el.noteInput.value = it.note || '';
+  el.categorySelect.value = it.category;
+  el.statusSelect.value = it.status;
+  // photo preview not shown in controls (user can replace)
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function saveNoteToSelected(){
+  if(selectedIndex===null){ alert('Önce bir öğe seç (Düzenle)'); return; }
+  const it = items[selectedIndex];
+  it.note = el.noteInput.value;
+  it.progress = el.progressInput.value;
+  it.title = el.titleInput.value || it.title;
+  it.category = el.categorySelect.value;
+  it.status = el.statusSelect.value;
+  save(); render(); alert('Kaydedildi');
+}
+function cycleStatus(id){
+  const order = ['Okuyorum/İzliyorum','Bitirdim','Beklemede'];
+  const it = items.find(i=>i.id===id);
+  if(!it) return;
+  const idx = (order.indexOf(it.status) + 1) % order.length;
+  it.status = order[idx];
+  save(); render();
+}
+
+/* photo input handles - read file to base64 and attach to selected item (or last added) */
+el.photoInput.addEventListener('change', async (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  // small resize via canvas for mobile - optional
+  const dataUrl = await readFileAsDataURL(f);
+  // attach to selected item if any else to first item
+  if(selectedIndex!==null && items[selectedIndex]) {
+    items[selectedIndex].photo = dataUrl;
+  } else if(items.length>0){
+    items[0].photo = dataUrl; // attach to newest
+  } else {
+    alert('Önce bir öğe ekleyin, sonra fotoğraf yükleyin.');
+  }
+  save(); render();
+});
+
+/* read file helper */
+function readFileAsDataURL(file){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = ()=>res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+/* save note button */
+el.saveNoteBtn.addEventListener('click', saveNoteToSelected);
+
+/* add item */
+el.addBtn.addEventListener('click', addItem);
+
+/* search & filter */
+el.searchInput.addEventListener('input', render);
+el.filterCat.addEventListener('change', render);
+
+/* clear all */
+el.clearAllBtn.addEventListener('click', ()=>{
+  if(confirm('Tüm veriler silinecek, emin misin?')){ items=[]; save(); render(); }
+});
+
+/* export/import */
+el.exportBtn.addEventListener('click', ()=>{
+  const dataStr = JSON.stringify(items, null, 2);
+  const blob = new Blob([dataStr], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'ellolist_backup.json'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+el.importFile.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=> {
+    try{
+      const parsed = JSON.parse(r.result);
+      if(!Array.isArray(parsed)) throw new Error('Geçersiz format');
+      items = parsed;
+      save(); render(); alert('İçe aktarma başarılı');
+    }catch(err){ alert('Hata: '+err.message); }
+  };
+  r.readAsText(f);
+});
+
+/* import on load/render */
+render();
+
+/* allow enter key to add item quickly */
+el.titleInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addItem(); } });
+
+</script>
+</body>
+</html>
